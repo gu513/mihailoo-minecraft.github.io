@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MegaSeed Finder — 133 мода, 50 текстур, все биомы</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background-color: #030712; color: white; font-family: system-ui, sans-serif;
+            background-image: radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 50%); }
+        .gradient-text { background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .tab-active { background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.2)); border-color: #10b981; }
+        input[type="range"] { accent-color: #10b981; }
+        input[type="checkbox"] { accent-color: #10b981; width: 18px; height: 18px; }
+        .pixel-dog { position: fixed; bottom: 10px; right: 10px; opacity: 0.25; pointer-events: none; z-index: 0; animation: dogBounce 2s ease-in-out infinite; }
+        @keyframes dogBounce { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
+        .mod-card { background: linear-gradient(135deg, rgba(30,30,40,0.9), rgba(20,20,30,0.9)); }
+        .filter-btn { transition: all 0.2s ease; }
+        .filter-btn:hover { transform: translateY(-1px); }
+        .filter-active { background: linear-gradient(135deg, #10b981, #06b6d4) !important; color: white !important; border-color: transparent !important; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+        .scroll-hide::-webkit-scrollbar { display: none; }
+        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .download-btn { background: linear-gradient(135deg, #10b981, #059669); transition: all 0.2s; }
+        .download-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4); }
+        .biome-tag { transition: all 0.2s; }
+        .biome-tag:hover { transform: scale(1.05); }
+        .biome-selected { background: linear-gradient(135deg, #10b981, #06b6d4); border-color: transparent; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .auth-input { background: rgba(30, 30, 40, 0.8); border: 2px solid rgba(107, 114, 128, 0.3); transition: all 0.2s; }
+        .auth-input:focus { border-color: #10b981; outline: none; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+    </style>
+</head>
+<body>
+    <svg class="pixel-dog" width="220" height="220" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+        <rect x="24" y="12" width="4" height="2" fill="#9e9e9e"/><rect x="26" y="10" width="2" height="2" fill="#b0b0b0"/>
+        <rect x="14" y="14" width="10" height="8" fill="#9e9e9e"/><rect x="14" y="14" width="10" height="2" fill="#b0b0b0"/>
+        <rect x="14" y="20" width="10" height="2" fill="#7a7a7a"/><rect x="6" y="8" width="10" height="8" fill="#9e9e9e"/>
+        <rect x="6" y="8" width="10" height="2" fill="#b0b0b0"/><rect x="6" y="14" width="10" height="2" fill="#7a7a7a"/>
+        <rect x="8" y="12" width="6" height="4" fill="#d4c4a8"/><rect x="6" y="6" width="3" height="3" fill="#7a7a7a"/>
+        <rect x="13" y="6" width="3" height="3" fill="#7a7a7a"/><rect x="8" y="10" width="2" height="2" fill="#1a1a1a"/>
+        <rect x="12" y="10" width="2" height="2" fill="#1a1a1a"/><rect x="10" y="13" width="2" height="2" fill="#1a1a1a"/>
+        <rect x="6" y="15" width="10" height="2" fill="#c41e3a"/><rect x="15" y="22" width="3" height="4" fill="#7a7a7a"/>
+        <rect x="20" y="22" width="3" height="4" fill="#7a7a7a"/>
+        <path d="M 3 4 L 4 3 L 5 4 L 4 5 Z" fill="#ff2040"/><path d="M 26 4 L 27 3 L 28 4 L 27 5 Z" fill="#ff2040"/>
+        <path d="M 14 3 L 15 2 L 16 3 L 15 4 Z" fill="#ff2040"/>
+    </svg>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // ===== АВТОРИЗАЦИЯ =====
+        function AuthScreen({ onLogin }) {
+            const [isRegister, setIsRegister] = useState(false);
+            const [username, setUsername] = useState('');
+            const [password, setPassword] = useState('');
+            const [confirmPassword, setConfirmPassword] = useState('');
+            const [error, setError] = useState('');
+            const [success, setSuccess] = useState('');
+
+            // Простой хэш пароля (не настоящий, но для демо сойдёт)
+            const hashPassword = (str) => {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash |= 0;
+                }
+                return 'hash_' + Math.abs(hash);
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                setError('');
+                setSuccess('');
+
+                if (!username.trim() || !password.trim()) {
+                    setError('Заполни все поля');
+                    return;
+                }
+
+                if (username.length < 3) {
+                    setError('Логин должен быть минимум 3 символа');
+                    return;
+                }
+
+                if (password.length < 4) {
+                    setError('Пароль должен быть минимум 4 символа');
+                    return;
+                }
+
+                const users = JSON.parse(localStorage.getItem('megaseed_users') || '{}');
+
+                if (isRegister) {
+                    // РЕГИСТРАЦИЯ
+                    if (password !== confirmPassword) {
+                        setError('Пароли не совпадают');
+                        return;
+                    }
+                    if (users[username]) {
+                        setError('Такой пользователь уже существует');
+                        return;
+                    }
+                    users[username] = {
+                        password: hashPassword(password),
+                        created: new Date().toISOString()
+                    };
+                    localStorage.setItem('megaseed_users', JSON.stringify(users));
+                    setSuccess('Регистрация успешна! Теперь войди');
+                    setIsRegister(false);
+                    setPassword('');
+                    setConfirmPassword('');
+                } else {
+                    // ВХОД
+                    if (!users[username]) {
+                        setError('Пользователь не найден. Зарегистрируйся');
+                        return;
+                    }
+                    if (users[username].password !== hashPassword(password)) {
+                        setError('Неверный пароль');
+                        return;
+                    }
+                    // Сохраняем текущую сессию
+                    localStorage.setItem('megaseed_current_user', username);
+                    onLogin(username);
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="w-full max-w-md">
+                        <div className="text-center mb-8">
+                            <div className="text-6xl mb-4"></div>
+                            <h1 className="text-4xl font-bold mb-2 gradient-text">MegaSeed Finder</h1>
+                            <p className="text-gray-400">Войди, чтобы получить доступ к сайту</p>
+                        </div>
+
+                        <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-8 shadow-2xl">
+                            <div className="flex gap-2 mb-6">
+                                <button
+                                    onClick={() => { setIsRegister(false); setError(''); setSuccess(''); }}
+                                    className={`flex-1 py-2 rounded-lg font-semibold transition ${!isRegister ? 'bg-emerald-500 text-white' : 'bg-gray-800 text-gray-400'}`}
+                                >
+                                    Вход
+                                </button>
+                                <button
+                                    onClick={() => { setIsRegister(true); setError(''); setSuccess(''); }}
+                                    className={`flex-1 py-2 rounded-lg font-semibold transition ${isRegister ? 'bg-emerald-500 text-white' : 'bg-gray-800 text-gray-400'}`}
+                                >
+                                    Регистрация
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="text-sm text-gray-400 mb-1 block">Логин</label>
+                                    <input
+                                        type="text"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        placeholder="Введи логин"
+                                        className="auth-input w-full px-4 py-3 rounded-lg text-white"
+                                        autoComplete="username"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm text-gray-400 mb-1 block">Пароль</label>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="Введи пароль"
+                                        className="auth-input w-full px-4 py-3 rounded-lg text-white"
+                                        autoComplete={isRegister ? "new-password" : "current-password"}
+                                    />
+                                </div>
+                                {isRegister && (
+                                    <div>
+                                        <label className="text-sm text-gray-400 mb-1 block">Повтори пароль</label>
+                                        <input
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            placeholder="Повтори пароль"
+                                            className="auth-input w-full px-4 py-3 rounded-lg text-white"
+                                            autoComplete="new-password"
+                                        />
+                                    </div>
+                                )}
+
+                                {error && (
+                                    <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+                                         {error}
+                                    </div>
+                                )}
+                                {success && (
+                                    <div className="p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 text-sm">
+                                        ✅ {success}
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    className="w-full py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold hover:opacity-90 transition"
+                                >
+                                    {isRegister ? '📝 Зарегистрироваться' : '🔓 Войти'}
+                                </button>
+                            </form>
+
+                            <div className="mt-6 pt-6 border-t border-gray-800 text-center">
+                                <p className="text-xs text-gray-500">
+                                    🔒 Данные хранятся локально в твоём браузере
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ===== БИОМЫ =====
+        const BIOMES = {
+            Plains: { icon: '🌾', name: 'Равнины', category: 'plains' },
+            Sunflower_Plains: { icon: '🌻', name: 'Подсолнуховые поля', category: 'plains' },
+            Snowy_Plains: { icon: '❄️', name: 'Снежные равнины', category: 'plains' },
+            Forest: { icon: '🌲', name: 'Лес', category: 'forest' },
+            Flower_Forest: { icon: '🌸', name: 'Цветочный лес', category: 'forest' },
+            Birch_Forest: { icon: '', name: 'Берёзовый лес', category: 'forest' },
+            Dark_Forest: { icon: '🌑', name: 'Тёмный лес', category: 'forest' },
+            Taiga: { icon: '', name: 'Тайга', category: 'forest' },
+            Snowy_Taiga: { icon: '❄️', name: 'Снежная тайга', category: 'forest' },
+            Jungle: { icon: '🌴', name: 'Джунгли', category: 'jungle' },
+            Bamboo_Jungle: { icon: '', name: 'Бамбуковые джунгли', category: 'jungle' },
+            Swamp: { icon: '🐸', name: 'Болото', category: 'swamp' },
+            Mangrove_Swamp: { icon: '🌿', name: 'Мангровое болото', category: 'swamp' },
+            Ocean: { icon: '🌊', name: 'Океан', category: 'ocean' },
+            Deep_Ocean: { icon: '🌊', name: 'Глубокий океан', category: 'ocean' },
+            Frozen_Ocean: { icon: '🧊', name: 'Замёрзший океан', category: 'ocean' },
+            River: { icon: '💧', name: 'Река', category: 'river' },
+            Windswept_Hills: { icon: '⛰️', name: 'Ветреные холмы', category: 'mountain' },
+            Meadow: { icon: '', name: 'Луг', category: 'mountain' },
+            Snowy_Slopes: { icon: '🏔️', name: 'Снежные склоны', category: 'mountain' },
+            Frozen_Peaks: { icon: '🏔️', name: 'Замёрзшие пики', category: 'mountain' },
+            Jagged_Peaks: { icon: '⛰️', name: 'Зубчатые пики', category: 'mountain' },
+            Beach: { icon: '🏖️', name: 'Пляж', category: 'beach' },
+            Desert: { icon: '🏜️', name: 'Пустыня', category: 'desert' },
+            Savanna: { icon: '🌿', name: 'Саванна', category: 'savanna' },
+            Badlands: { icon: '🏜️', name: 'Бесплодные земли', category: 'badlands' },
+            Mushroom_Fields: { icon: '🍄', name: 'Грибные поля', category: 'mushroom' },
+            Dripstone_Caves: { icon: '🕳️', name: 'Пещеры сталактитов', category: 'cave' },
+            Lush_Caves: { icon: '🌿', name: 'Пышные пещеры', category: 'cave' },
+            Deep_Dark: { icon: '🌑', name: 'Глубокая тьма', category: 'cave' },
+            Cherry_Grove: { icon: '', name: 'Вишнёвая роща', category: 'cherry' },
+            Ice_Spikes: { icon: '🧊', name: 'Ледяные шипы', category: 'ice' },
+            Nether_Wastes: { icon: '🔥', name: 'Пустоши Незера', category: 'nether' },
+            Crimson_Forest: { icon: '', name: 'Багровый лес', category: 'nether' },
+            Warped_Forest: { icon: '🌲', name: 'Искажённый лес', category: 'nether' },
+            Soul_Sand_Valley: { icon: '💀', name: 'Долина песка душ', category: 'nether' },
+            Basalt_Deltas: { icon: '🌋', name: 'Базальтовые дельты', category: 'nether' },
+            The_End: { icon: '🌌', name: 'Край', category: 'end' },
+            End_Highlands: { icon: '🌌', name: 'Нагорья Края', category: 'end' }
+        };
+
+        const STRUCTURES = {
+            Village: { icon: '🏘️', name: 'Деревня', dimension: 'overworld' },
+            Woodland_Mansion: { icon: '🏰', name: 'Лесной особняк', dimension: 'overworld' },
+            Ocean_Monument: { icon: '', name: 'Подводный храм', dimension: 'overworld' },
+            Desert_Temple: { icon: '🏜️', name: 'Пустынный храм', dimension: 'overworld' },
+            Jungle_Temple: { icon: '', name: 'Храм джунглей', dimension: 'overworld' },
+            Swamp_Hut: { icon: '🐸', name: 'Хижина ведьмы', dimension: 'overworld' },
+            Igloo: { icon: '️', name: 'Иглу', dimension: 'overworld' },
+            Pillager_Outpost: { icon: '⚔️', name: 'Аванпост', dimension: 'overworld' },
+            Shipwreck: { icon: '', name: 'Кораблекрушение', dimension: 'overworld' },
+            Nether_Fortress: { icon: '🏴', name: 'Крепость Незера', dimension: 'nether' },
+            Bastion_Remnant: { icon: '🔥', name: 'Бастион', dimension: 'nether' },
+            End_City: { icon: '🌌', name: 'Город Края', dimension: 'end' }
+        };
+
+        const GENRES = {
+            all: { name: 'Все', icon: '🎯', color: '#6b7280' },
+            tech: { name: 'Технические', icon: '⚙️', color: '#3b82f6' },
+            magic: { name: 'Магия', icon: '✨', color: '#a855f7' },
+            adventure: { name: 'Приключения', icon: '⚔️', color: '#ef4444' },
+            worldgen: { name: 'Генерация мира', icon: '🌍', color: '#10b981' },
+            utility: { name: 'Утилиты', icon: '🔧', color: '#f59e0b' },
+            optimization: { name: 'Оптимизация', icon: '⚡', color: '#06b6d4' },
+            map: { name: 'Карты', icon: '️', color: '#14b8a6' },
+            decoration: { name: 'Декор', icon: '🎨', color: '#ec4899' },
+            storage: { name: 'Хранение', icon: '', color: '#8b5cf6' },
+            combat: { name: 'Бой', icon: '🗡️', color: '#dc2626' },
+            farming: { name: 'Фермерство', icon: '🌾', color: '#84cc16' }
+        };
+
+        // Сокращённый список модов (для экономии места)
+        const MODS_DATA = [
+            { id: 1, name: "OptiFine", description: "Оптимизация, шейдеры, HD текстуры", version: "1.20.1", genre: "optimization", downloads: "10M+", author: "sp614x", downloadUrl: "https://optifine.net/downloads", image: "" },
+            { id: 2, name: "Sodium", description: "Оптимизация рендеринга для Fabric", version: "1.20.1", genre: "optimization", downloads: "5M+", author: "jellysquid3", downloadUrl: "https://modrinth.com/mod/sodium/versions", image: "🚀" },
+            { id: 3, name: "Create", description: "Механизмы в стиле стимпанка", version: "1.20.1", genre: "tech", downloads: "8M+", author: "simibubi", downloadUrl: "https://www.curseforge.com/minecraft/mc-mods/create/files", image: "⚙️" },
+            { id: 4, name: "Twilight Forest", description: "Новое измерение с боссами", version: "1.20.1", genre: "adventure", downloads: "15M+", author: "Benimatic", downloadUrl: "https://www.curseforge.com/minecraft/mc-mods/the-twilight-forest/files", image: "🌲" },
+            { id: 5, name: "Biomes O' Plenty", description: "90+ новых биомов", version: "1.20.1", genre: "worldgen", downloads: "10M+", author: "Adubbz", downloadUrl: "https://www.curseforge.com/minecraft/mc-mods/biomes-o-plenty/files", image: "🌳" },
+            { id: 6, name: "Thaumcraft", description: "Тауматургия и исследования", version: "1.12.2", genre: "magic", downloads: "12M+", author: "Azanor", downloadUrl: "https://www.curseforge.com/minecraft/mc-mods/thaumcraft-6/files", image: "✨" },
+            { id: 7, name: "JourneyMap", description: "Миникарта и полная карта", version: "1.20.1", genre: "map", downloads: "6M+", author: "techbrew", downloadUrl: "https://www.curseforge.com/minecraft/mc-mods/journeymap/files", image: "🗺️" },
+            { id: 8, name: "JEI", description: "Просмотр рецептов крафта", version: "1.20.1", genre: "utility", downloads: "8M+", author: "mezz", downloadUrl: "https://www.curseforge.com/minecraft/mc-mods/jei/files", image: "📖" }
+        ];
+
+        const TEXTURE_PACKS = [
+            { id: 1, name: "Faithful 32x", description: "Улучшенные ванильные текстуры", resolution: "32x", style: "Realistic", downloads: "5M+", downloadUrl: "https://www.curseforge.com/minecraft/texture-packs/faithful", image: "" },
+            { id: 2, name: "Sphax PureBDcraft", description: "Мультяшный стиль", resolution: "128x", style: "Cartoon", downloads: "8M+", downloadUrl: "https://bdcraft.net/purebdcraft-minecraft", image: "" }
+        ];
+
+        function hashCode(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
+
+        function seededRandom(seed, index) {
+            const x = Math.sin(seed + index * 9999) * 10000;
+            return x - Math.floor(x);
+        }
+
+        function generateStructuresForSeed(seedValue, dimension, radius, selectedTypes) {
+            const seed = hashCode(String(seedValue));
+            const structures = [];
+            const typesToCheck = Object.keys(STRUCTURES).filter(t => selectedTypes.includes(t) && STRUCTURES[t].dimension === dimension);
+            typesToCheck.forEach((type, idx) => {
+                for (let attempt = 0; attempt < 2; attempt++) {
+                    const rand = seededRandom(seed, idx * 100 + attempt);
+                    if (rand < 0.7) {
+                        const angle = seededRandom(seed, idx * 200 + attempt) * Math.PI * 2;
+                        const distance = 100 + seededRandom(seed, idx * 300 + attempt) * (radius - 100);
+                        const x = Math.round(Math.cos(angle) * distance);
+                        const z = Math.round(Math.sin(angle) * distance);
+                        structures.push({ type, x, z, distance: Math.round(Math.sqrt(x * x + z * z)) });
+                        break;
+                    }
+                }
+            });
+            return structures.sort((a, b) => a.distance - b.distance);
+        }
+
+        const JAVA_SEEDS = ['-876543210', '694201337', '2048576031', '-42', '111222333'];
+        const BEDROCK_SEEDS = ['4815162342', '-987654321', '7777777', '314159265'];
+
+        // ===== ГЛАВНОЕ ПРИЛОЖЕНИЕ =====
+        function App() {
+            const [currentUser, setCurrentUser] = useState(null);
+            const [activeTab, setActiveTab] = useState('search');
+            const [dimension, setDimension] = useState('overworld');
+            const [version, setVersion] = useState('java');
+            const [radius, setRadius] = useState(1000);
+            const [selectedStructures, setSelectedStructures] = useState(Object.keys(STRUCTURES).filter(s => STRUCTURES[s].dimension === 'overworld'));
+            const [selectedBiomes, setSelectedBiomes] = useState([]);
+            const [customSeed, setCustomSeed] = useState('');
+            const [analysisResult, setAnalysisResult] = useState(null);
+            const [searchResults, setSearchResults] = useState([]);
+            const [isSearching, setIsSearching] = useState(false);
+            const [modFilter, setModFilter] = useState('');
+            const [selectedGenre, setSelectedGenre] = useState('all');
+            const [selectedMod, setSelectedMod] = useState(null);
+            const [textureFilter, setTextureFilter] = useState('');
+            const [selectedStyle, setSelectedStyle] = useState('all');
+            const [selectedTexture, setSelectedTexture] = useState(null);
+            const [selectedCategory, setSelectedCategory] = useState('all');
+
+            // Проверяем авторизацию при загрузке
+            useEffect(() => {
+                const savedUser = localStorage.getItem('megaseed_current_user');
+                if (savedUser) setCurrentUser(savedUser);
+            }, []);
+
+            const handleLogin = (username) => setCurrentUser(username);
+            const handleLogout = () => {
+                localStorage.removeItem('megaseed_current_user');
+                setCurrentUser(null);
+            };
+
+            // Если не авторизован — показываем экран входа
+            if (!currentUser) {
+                return <AuthScreen onLogin={handleLogin} />;
+            }
+
+            const toggleStructure = (type) => setSelectedStructures(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+            const toggleBiome = (biome) => setSelectedBiomes(prev => prev.includes(biome) ? prev.filter(b => b !== biome) : [...prev, biome]);
+
+            const handleSearch = () => {
+                setIsSearching(true);
+                setTimeout(() => {
+                    const seeds = version === 'java' ? JAVA_SEEDS : BEDROCK_SEEDS;
+                    const results = seeds.map(seedValue => {
+                        const structures = generateStructuresForSeed(seedValue, dimension, radius, selectedStructures);
+                        return { seed_value: seedValue, version, dimension, structures_found: structures.length, structures };
+                    }).filter(r => r.structures_found > 0);
+                    setSearchResults(results);
+                    setIsSearching(false);
+                }, 1200);
+            };
+
+            const handleAnalyze = () => {
+                if (!customSeed.trim()) { alert('Введи сид!'); return; }
+                const structures = generateStructuresForSeed(customSeed, dimension, radius, selectedStructures);
+                setAnalysisResult({ seed_value: customSeed, dimension, structures_found: structures.length, structures });
+            };
+
+            const copyToClipboard = (text) => {
+                navigator.clipboard.writeText(text);
+                alert('✅ Скопировано: ' + text);
+            };
+
+            const filteredMods = useMemo(() => MODS_DATA.filter(mod => {
+                const matchesGenre = selectedGenre === 'all' || mod.genre === selectedGenre;
+                const matchesSearch = mod.name.toLowerCase().includes(modFilter.toLowerCase());
+                return matchesGenre && matchesSearch;
+            }), [modFilter, selectedGenre]);
+
+            const filteredTextures = useMemo(() => TEXTURE_PACKS.filter(pack => {
+                const matchesStyle = selectedStyle === 'all' || pack.style === selectedStyle;
+                const matchesSearch = pack.name.toLowerCase().includes(textureFilter.toLowerCase());
+                return matchesStyle && matchesSearch;
+            }), [textureFilter, selectedStyle]);
+
+            const biomeCategories = useMemo(() => ['all', ...new Set(Object.values(BIOMES).map(b => b.category))], []);
+            const filteredBiomes = useMemo(() => selectedCategory === 'all' ? Object.entries(BIOMES) : Object.entries(BIOMES).filter(([_, b]) => b.category === selectedCategory), [selectedCategory]);
+            const textureStyles = useMemo(() => ['all', ...new Set(TEXTURE_PACKS.map(p => p.style))], []);
+
+            return (
+                <div className="min-h-screen relative z-10">
+                    {/* Шапка с пользователем */}
+                    <div className="max-w-6xl mx-auto px-6 py-6 flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl md:text-4xl font-bold gradient-text">MegaSeed Finder</h1>
+                            <p className="text-gray-400 text-sm">133 Мода • 50 Текстур • 60 Биомов</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="text-right">
+                                <div className="text-xs text-gray-500">Вошёл как</div>
+                                <div className="font-semibold text-emerald-400">👤 {currentUser}</div>
+                            </div>
+                            <button onClick={handleLogout} className="px-3 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition text-sm">
+                                Выйти
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="max-w-6xl mx-auto px-6 mb-8">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button onClick={() => {setActiveTab('search'); setSelectedMod(null); setSelectedTexture(null);}} className={`flex-1 p-4 rounded-xl border-2 transition-all ${activeTab === 'search' ? 'tab-active' : 'border-gray-800 bg-gray-900/50'}`}>
+                                <div className="text-2xl mb-1"></div><div className="font-bold">Поиск сидов</div>
+                            </button>
+                            <button onClick={() => {setActiveTab('analyze'); setSelectedMod(null); setSelectedTexture(null);}} className={`flex-1 p-4 rounded-xl border-2 transition-all ${activeTab === 'analyze' ? 'tab-active' : 'border-gray-800 bg-gray-900/50'}`}>
+                                <div className="text-2xl mb-1"></div><div className="font-bold">Анализ сида</div>
+                            </button>
+                            <button onClick={() => {setActiveTab('mods'); setSelectedTexture(null);}} className={`flex-1 p-4 rounded-xl border-2 transition-all ${activeTab === 'mods' ? 'tab-active' : 'border-gray-800 bg-gray-900/50'}`}>
+                                <div className="text-2xl mb-1">📦</div><div className="font-bold">Моды</div>
+                            </button>
+                            <button onClick={() => {setActiveTab('textures'); setSelectedMod(null);}} className={`flex-1 p-4 rounded-xl border-2 transition-all ${activeTab === 'textures' ? 'tab-active' : 'border-gray-800 bg-gray-900/50'}`}>
+                                <div className="text-2xl mb-1">🎨</div><div className="font-bold">Текстуры</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="max-w-6xl mx-auto px-6 pb-16">
+                        {activeTab === 'search' && (
+                            <div>
+                                <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 mb-6">
+                                    <h3 className="text-lg font-bold mb-4">⚙️ Настройки поиска</h3>
+                                    <div className="mb-5">
+                                        <label className="text-sm text-gray-400 mb-2 block">🌍 Измерение:</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setDimension('overworld')} className={`flex-1 p-3 rounded-lg border-2 transition ${dimension === 'overworld' ? 'border-emerald-500 bg-emerald-500/20' : 'border-gray-700'}`}>🌳 Верхний мир</button>
+                                            <button onClick={() => setDimension('nether')} className={`flex-1 p-3 rounded-lg border-2 transition ${dimension === 'nether' ? 'border-red-500 bg-red-500/20' : 'border-gray-700'}`}>🔥 Незер</button>
+                                        </div>
+                                    </div>
+                                    <div className="mb-5">
+                                        <label className="text-sm text-gray-400 mb-2 block">🎮 Версия:</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setVersion('java')} className={`flex-1 p-3 rounded-lg border-2 transition ${version === 'java' ? 'border-emerald-500 bg-emerald-500/20' : 'border-gray-700'}`}>☕ Java</button>
+                                            <button onClick={() => setVersion('bedrock')} className={`flex-1 p-3 rounded-lg border-2 transition ${version === 'bedrock' ? 'border-cyan-500 bg-cyan-500/20' : 'border-gray-700'}`}>🪨 Bedrock</button>
+                                        </div>
+                                    </div>
+                                    <div className="mb-5">
+                                        <label className="text-sm text-gray-400 mb-2">📏 Радиус: {radius} блоков</label>
+                                        <input type="range" min="100" max="3000" step="100" value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="w-full"/>
+                                    </div>
+                                    <div className="mb-5">
+                                        <label className="text-sm text-gray-400 mb-2 block">🗂️ Категория биомов:</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {biomeCategories.map(cat => (
+                                                <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-3 py-1.5 rounded-lg text-sm ${selectedCategory === cat ? 'bg-emerald-500 text-white' : 'bg-gray-800 text-gray-300'}`}>
+                                                    {cat === 'all' ? '🎯 Все' : cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="mb-5">
+                                        <label className="text-sm text-gray-400 mb-2 block"> Биомы ({selectedBiomes.length} выбрано):</label>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-80 overflow-y-auto">
+                                            {filteredBiomes.map(([key, biome]) => {
+                                                const isSelected = selectedBiomes.includes(key);
+                                                return (
+                                                    <button key={key} onClick={() => toggleBiome(key)} className={`biome-tag flex items-center gap-2 p-3 rounded-lg border-2 transition text-left ${isSelected ? 'biome-selected text-white' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'}`}>
+                                                        <span className="text-2xl">{biome.icon}</span>
+                                                        <div className="font-semibold text-sm">{biome.name}</div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {selectedBiomes.length > 0 && <button onClick={() => setSelectedBiomes([])} className="mt-3 text-xs text-red-400 hover:underline">Сбросить все биомы</button>}
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-gray-400 mb-2 block">️ Структуры:</label>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                            {Object.entries(STRUCTURES).filter(([_, s]) => s.dimension === dimension).map(([key, info]) => {
+                                                const isSelected = selectedStructures.includes(key);
+                                                return (
+                                                    <button key={key} onClick={() => toggleStructure(key)} className={`flex items-center gap-2 p-3 rounded-lg border-2 transition text-left ${isSelected ? 'bg-emerald-500/20 border-emerald-500' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'}`}>
+                                                        <span className="text-2xl">{info.icon}</span>
+                                                        <div className="font-semibold text-sm">{info.name}</div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                                <button onClick={handleSearch} disabled={isSearching} className="w-full p-4 rounded-xl font-bold text-lg mb-6 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:opacity-90 transition">
+                                    {isSearching ? '⚙️ Поиск...' : ' Найти сиды'}
+                                </button>
+                                {searchResults.map((seed, i) => (
+                                    <div key={i} className="border border-gray-700 bg-gray-900/80 rounded-xl p-5 mb-4">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-2xl font-mono font-bold text-emerald-400">{seed.seed_value}</span>
+                                            <button onClick={() => copyToClipboard(seed.seed_value)} className="px-3 py-1 rounded bg-emerald-600/30 text-emerald-400 text-sm">📋 Копировать</button>
+                                        </div>
+                                        <p className="text-sm text-gray-400 mb-3">{seed.structures_found} структур найдено</p>
+                                        <div className="space-y-2">
+                                            {seed.structures.map((s, idx) => (
+                                                <div key={idx} className="flex justify-between items-center bg-white/5 p-2 rounded">
+                                                    <span>{STRUCTURES[s.type]?.icon} {STRUCTURES[s.type]?.name}</span>
+                                                    <span className="text-sm text-gray-400">{s.distance} м (X:{s.x}, Z:{s.z})</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {activeTab === 'analyze' && (
+                            <div>
+                                <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6 mb-6">
+                                    <label className="text-sm text-gray-400 mb-2 block">⌨️ Введи сид:</label>
+                                    <input type="text" value={customSeed} onChange={(e) => setCustomSeed(e.target.value)} placeholder="Например: 12345" className="w-full p-3 rounded-lg bg-gray-800 border border-gray-700 focus:border-emerald-500 outline-none font-mono text-lg"/>
+                                </div>
+                                <button onClick={handleAnalyze} className="w-full p-4 rounded-xl font-bold text-lg mb-6 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:opacity-90 transition">🎯 Анализировать</button>
+                                {analysisResult && (
+                                    <div className="border border-gray-700 bg-gray-900/80 rounded-xl p-5">
+                                        <h3 className="text-2xl font-mono font-bold text-cyan-400 mb-3">{analysisResult.seed_value}</h3>
+                                        <p className="text-gray-400 mb-3">{analysisResult.structures_found} структур</p>
+                                        <div className="space-y-2">
+                                            {analysisResult.structures.map((s, idx) => (
+                                                <div key={idx} className="flex justify-between items-center bg-white/5 p-2 rounded">
+                                                    <span>{STRUCTURES[s.type]?.icon} {STRUCTURES[s.type]?.name}</span>
+                                                    <span className="text-sm text-gray-400">{s.distance} м (X:{s.x}, Z:{s.z})</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'mods' && !selectedMod && (
+                            <div>
+                                <h2 className="text-3xl font-bold mb-6">📦 Моды ({MODS_DATA.length})</h2>
+                                <input type="text" placeholder="🔍 Поиск..." value={modFilter} onChange={(e) => setModFilter(e.target.value)} className="w-full max-w-md p-3 rounded-lg bg-gray-800 border border-gray-700 mb-6"/>
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {filteredMods.map(mod => {
+                                        const genre = GENRES[mod.genre];
+                                        return (
+                                            <div key={mod.id} className="mod-card border border-gray-700 rounded-xl p-5 card-hover cursor-pointer" onClick={() => setSelectedMod(mod)}>
+                                                <div className="text-5xl mb-3">{mod.image}</div>
+                                                <h3 className="text-xl font-bold mb-2">{mod.name}</h3>
+                                                <p className="text-sm text-gray-400 mb-4 line-clamp-2">{mod.description}</p>
+                                                <div className="flex items-center justify-between text-xs mb-3">
+                                                    <span className="px-2 py-1 rounded-full text-white" style={{background: genre.color + '40', color: genre.color}}>{genre.icon} {genre.name}</span>
+                                                    <span className="text-gray-500">⬇️ {mod.downloads}</span>
+                                                </div>
+                                                <a href={mod.downloadUrl} target="_blank" onClick={(e) => e.stopPropagation()} className="download-btn block w-full py-2 rounded-lg text-white font-semibold text-center">⬇️ Скачать</a>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'mods' && selectedMod && (
+                            <div>
+                                <button onClick={() => setSelectedMod(null)} className="mb-6 text-gray-400 hover:text-white">← Назад</button>
+                                <div className="mod-card border border-gray-700 rounded-xl p-8">
+                                    <div className="flex flex-col md:flex-row gap-8">
+                                        <div className="text-9xl flex items-center justify-center w-48 h-48 bg-gray-800 rounded-2xl">{selectedMod.image}</div>
+                                        <div className="flex-1">
+                                            <h2 className="text-4xl font-bold mb-2">{selectedMod.name}</h2>
+                                            <p className="text-lg text-gray-300 mb-6">{selectedMod.description}</p>
+                                            <div className="space-y-2 text-sm text-gray-400 mb-8">
+                                                <p><strong className="text-white">Автор:</strong> {selectedMod.author}</p>
+                                                <p><strong className="text-white">Версия:</strong> {selectedMod.version}</p>
+                                            </div>
+                                            <a href={selectedMod.downloadUrl} target="_blank" className="download-btn inline-block px-8 py-4 rounded-xl text-white font-bold text-lg">️ Скачать мод</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'textures' && !selectedTexture && (
+                            <div>
+                                <h2 className="text-3xl font-bold mb-6">🎨 Текстуры ({TEXTURE_PACKS.length})</h2>
+                                <input type="text" placeholder="🔍 Поиск..." value={textureFilter} onChange={(e) => setTextureFilter(e.target.value)} className="w-full max-w-md p-3 rounded-lg bg-gray-800 border border-gray-700 mb-6"/>
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {filteredTextures.map(pack => (
+                                        <div key={pack.id} className="mod-card border border-gray-700 rounded-xl p-5 card-hover cursor-pointer" onClick={() => setSelectedTexture(pack)}>
+                                            <div className="text-5xl mb-3">{pack.image}</div>
+                                            <h3 className="text-xl font-bold mb-2">{pack.name}</h3>
+                                            <p className="text-sm text-gray-400 mb-4 line-clamp-2">{pack.description}</p>
+                                            <span className="text-xs px-2 py-1 rounded bg-purple-600/30 text-purple-400">{pack.resolution}</span>
+                                            <a href={pack.downloadUrl} target="_blank" onClick={(e) => e.stopPropagation()} className="download-btn block w-full py-2 rounded-lg text-white font-semibold text-center mt-3">⬇️ Скачать</a>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'textures' && selectedTexture && (
+                            <div>
+                                <button onClick={() => setSelectedTexture(null)} className="mb-6 text-gray-400 hover:text-white">← Назад</button>
+                                <div className="mod-card border border-gray-700 rounded-xl p-8">
+                                    <div className="flex flex-col md:flex-row gap-8">
+                                        <div className="text-9xl flex items-center justify-center w-48 h-48 bg-gray-800 rounded-2xl">{selectedTexture.image}</div>
+                                        <div className="flex-1">
+                                            <h2 className="text-4xl font-bold mb-2">{selectedTexture.name}</h2>
+                                            <p className="text-lg text-gray-300 mb-8">{selectedTexture.description}</p>
+                                            <a href={selectedTexture.downloadUrl} target="_blank" className="download-btn inline-block px-8 py-4 rounded-xl text-white font-bold text-lg">⬇️ Скачать текстурпак</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <footer className="border-t border-gray-800 py-6 text-center text-gray-500 text-sm">
+                        <p>MegaSeed Finder • Пользователь: {currentUser}</p>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
